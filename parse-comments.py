@@ -91,34 +91,32 @@ def process_with_openai(content, max_retries=3):
     config = load_config()
     client = OpenAI(api_key=config['openai_api_key'])
     
-    prompt = (
-        "SYSTEM: You are a JSON-only response bot. You MUST output ONLY valid JSON - no plain text allowed.\n\n"
+    prompt = """You are a JSON-only response bot. You MUST output ONLY valid JSON - no plain text allowed.
 
-        "CRITICAL OUTPUT RULES:\n"
-        "1. Output MUST be pure JSON - starting with { and ending with }\n"
-        "2. DO NOT output any plain text analysis or summaries\n"
-        "3. DO NOT add any text before or after the JSON\n"
-        "4. DO NOT explain your thinking or reasoning\n"
-        "5. ONLY output in this exact JSON format:\n"
-        "{\n"
-        '  "tutorial_ideas": [],\n'
-        '  "use_cases": [],\n'
-        '  "technical_questions": [],\n'
-        '  "problem_statements": []\n'
-        "}\n\n"
+            CRITICAL OUTPUT RULES:
+            1. Output MUST be pure JSON - starting with { and ending with }
+            2. DO NOT output any plain text analysis or summaries
+            3. DO NOT add any text before or after the JSON
+            4. DO NOT explain your thinking or reasoning
+            5. ONLY output in this exact JSON format:
+            {
+            "tutorial_ideas": [],
+            "use_cases": [],
+            "technical_questions": [],
+            "problem_statements": []
+            }
 
-        "TASK: Silently analyze the comments and extract ONLY Make.com-related content into these categories:\n"
-        "- tutorial_ideas: Direct requests or suggestions for Make.com tutorials, especially on scenarios or automation workflows\n"
-        "- use_cases: Specific scenarios or real-world examples where Make.com could be used for automation\n"
-        "- technical_questions: Technical questions directly concerning Make.com's features, modules, or integrations\n"
-        "- problem_statements: Automation problems or challenges that could be addressed by Make.com\n\n"
+            TASK: Silently analyze the comments and extract ONLY Make.com-related content into these categories:
+            - tutorial_ideas: Direct requests or suggestions for Make.com tutorials, especially on scenarios or automation workflows
+            - use_cases: Specific scenarios or real-world examples where Make.com could be used for automation
+            - technical_questions: Technical questions directly concerning Make.com's features, modules, or integrations
+            - problem_statements: Automation problems or challenges that could be addressed by Make.com
 
-        "REMEMBER:\n"
-        "- If no Make.com content exists, return empty arrays but maintain JSON structure\n"
-        "- Do not explain why arrays are empty\n"
-        "- Avoid any commentary or plain text; output JSON only\n\n"
-        "- Do not start your response with ```json"
-    )
+            REMEMBER:
+            - If no Make.com content exists, return empty arrays but maintain JSON structure
+            - Do not explain why arrays are empty
+            - Avoid any commentary or plain text; output JSON only
+            - Do not start your response with ```json"""
     
     for attempt in range(max_retries):
         try:
