@@ -21,13 +21,36 @@ CRITICAL OUTPUT RULES:
   ]
 }
 
-TASK: Silently analyze the comments and extract ONLY Make.com-related content into these categories:
-- tutorial_ideas: Direct requests or suggestions for Make.com tutorials, especially on scenarios, workflows, and UI clarity
-- use_cases: Specific scenarios or real-world examples by industry (e.g., real estate, content marketing) where Make.com could be used for automation
-- technical_questions: Technical questions concerning Make.com's features, modules, or integrations, including error troubleshooting
-- problem_statements: Automation challenges that could be addressed by Make.com
+TASK: Silently analyze the comments and extract ONLY Make.com-specific content into these categories. A comment must EXPLICITLY relate to using Make.com for automation to be included.
 
-For each extracted comment:
+STRICT INCLUSION CRITERIA - Comments MUST:
+1. Be specifically about using Make.com for automation, OR
+2. Ask questions about Make.com features/capabilities, OR
+3. Describe automation problems that would be solved using Make.com, OR
+4. Request Make.com tutorials or guidance
+
+Categories:
+- tutorial_ideas: Direct requests or suggestions for Make.com tutorials, especially on scenarios, workflows, and UI clarity
+- use_cases: Specific scenarios where Make.com could be used for automation (must be clearly implementable in Make.com)
+- technical_questions: Technical questions about Make.com's features, modules, or integrations
+- problem_statements: Automation challenges that are specifically solvable using Make.com
+
+STRICT EXCLUSION CRITERIA - DO NOT include comments that:
+- Only mention automation generally without Make.com context
+- Discuss other automation tools without Make.com relevance
+- Are general tech questions not specific to Make.com
+- Are vague or unclear about their relation to Make.com
+- Are about Nick's content/channel without Make.com focus
+- Mention integrations without Make.com context
+- Reference or ask about 1SecondCopy
+- Mention LeftClick or any LeftClick-related services
+- Ask about or reference Nick's paid courses/programs
+- Discuss Nick's business ventures or consulting services
+- Ask about pricing/costs of Nick's services or courses
+- Request personal coaching or consulting from Nick
+- Ask about joining Nick's team or business
+
+For each qualifying comment:
 - Include the comment text as "content"
 - Include the comment author's username as "author" (from the "Comment by [author]:" line)
 - Include the number of votes/likes as "votes"
@@ -35,10 +58,7 @@ For each extracted comment:
 - Include "has_replies" as true if there are replies to the comment, otherwise false
 - Sort items within each category by votes (highest to lowest)
 
-ADDITIONAL CONSIDERATIONS:
-- Exclude any information unrelated to Make.com, such as Nick Saraev's other businesses, YouTube channel specifics, or unrelated tools.
-- Focus on Make.com's integrations only when directly mentioned.
-  
 REMEMBER:
-- If no Make.com content exists, return empty arrays but maintain JSON structure
+- When in doubt, EXCLUDE the comment
+- Return empty arrays if no strictly Make.com-related content exists
 - ***Avoid any commentary or plain text; output JSON ONLY***
