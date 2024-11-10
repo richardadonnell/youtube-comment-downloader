@@ -1,0 +1,199 @@
+import json
+import os
+import time
+from pathlib import Path
+
+from openai import OpenAI
+
+# WSL paths for JSON input files and output directory
+json_directory = r'\\wsl.localhost\Ubuntu\home\richa\youtube-comment-downloader\youtube-comment-downloader\comments'
+output_directory = r'\\wsl.localhost\Ubuntu\home\richa\youtube-comment-downloader\youtube-comment-downloader\comments\output'
+
+# Ensure the output directory exists
+os.makedirs(output_directory, exist_ok=True)
+
+def validate_json_structure(json_obj):
+    """Enhanced validation of JSON structure and content"""
+    expected_keys = ["tutorial_ideas", "use_cases", "technical_questions", "problem_statements"]
+    
+    # Basic structure validation
+    if not all(key in json_obj for key in expected_keys):
+        return False
+    
+    # Validate each array
+    for key in expected_keys:
+        # Check if it's an array
+        if not isinstance(json_obj[key], list):
+            return False
+        
+        # Check each item in the array
+        for item in json_obj[key]:
+            # Must be a string
+            if not isinstance(item, str):
+                return False
+            # Must not be empty
+            if not item.strip():
+                return False
+            # Must be a reasonable length (not too short or long)
+            if len(item) < 10 or len(item) > 500:
+                return False
+            # Must not contain placeholder-like text
+            placeholder_indicators = ['example', 'placeholder', 'idea1', 'use case1', 'question1']
+            if any(indicator in item.lower() for indicator in placeholder_indicators):
+                return False
+    
+    return True
+
+def clean_model_output(output):
+    """Clean the model output by removing markdown formatting and extracting JSON"""
+    output = output.strip()
+    
+    # Remove markdown code block formatting if present
+    if output.startswith('```'):
+        # Find the first { and last }
+        start_idx = output.find('{')
+        end_idx = output.rfind('}')
+        if start_idx != -1 and end_idx != -1:
+            output = output[start_idx:end_idx + 1]
+    
+    return output.strip()
+
+def is_valid_json_response(output):
+    """Check if the output can be parsed as valid JSON with the expected structure"""
+    output = clean_model_output(output)
+    if not (output.startswith('{') and output.endswith('}')):
+        return False
+    try:
+        json_obj = json.loads(output)
+        return validate_json_structure(json_obj)
+    except json.JSONDecodeError:
+        return False
+
+def load_config():
+    """Load configuration from config.json file"""
+    config_path = Path(__file__).parent / 'config.json'
+    if not config_path.exists():
+        # Create default config file if it doesn't exist
+        default_config = {
+            "openai_api_key": "your-api-key-here"
+        }
+        with open(config_path, 'w') as f:
+            json.dump(default_config, f, indent=4)
+        print(f"Please edit {config_path} and add your OpenAI API key")
+        exit(1)
+    
+    with open(config_path) as f:
+        config = json.load(f)
+    return config
+
+def process_with_openai(content, max_retries=3):
+    """Process content using OpenAI API instead of Ollama"""
+    config = load_config()
+    client = OpenAI(api_key=config['openai_api_key'])
+    
+    prompt = (
+        "SYSTEM: You are a JSON-only response bot. You MUST output ONLY valid JSON - no plain text allowed.\n\n"
+
+        "CRITICAL OUTPUT RULES:\n"
+        "1. Output MUST be pure JSON - starting with { and ending with }\n"
+        "2. DO NOT output any plain text analysis or summaries\n"
+        "3. DO NOT add any text before or after the JSON\n"
+        "4. DO NOT explain your thinking or reasoning\n"
+        "5. ONLY output in this exact JSON format:\n"
+        "{\n"
+        '  "tutorial_ideas": [],\n'
+        '  "use_cases": [],\n'
+        '  "technical_questions": [],\n'
+        '  "problem_statements": []\n'
+        "}\n\n"
+
+        "TASK: Silently analyze the comments and extract ONLY Make.com-related content into these categories:\n"
+        "- tutorial_ideas: Direct requests or suggestions for Make.com tutorials, especially on scenarios or automation workflows\n"
+        "- use_cases: Specific scenarios or real-world examples where Make.com could be used for automation\n"
+        "- technical_questions: Technical questions directly concerning Make.com's features, modules, or integrations\n"
+        "- problem_statements: Automation problems or challenges that could be addressed by Make.com\n\n"
+
+        "REMEMBER:\n"
+        "- If no Make.com content exists, return empty arrays but maintain JSON structure\n"
+        "- Do not explain why arrays are empty\n"
+        "- Avoid any commentary or plain text; output JSON only\n\n"
+        "- Do not start your response with ```json"
+    )
+    
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": content}
+                ],
+                temperature=0.1,
+                max_tokens=1000
+            )
+            
+            output = response.choices[0].message.content
+            
+            # Validate the response
+            try:
+                json_obj = json.loads(output)
+                if validate_json_structure(json_obj):
+                    # Return the output even if arrays are empty - removed retry logic here
+                    return output
+                else:
+                    print(f"Invalid JSON structure (attempt {attempt + 1})")
+                    continue
+            except json.JSONDecodeError as e:
+                print(f"JSON parsing error (attempt {attempt + 1}): {str(e)}")
+                continue
+
+        except Exception as e:
+            print(f"OpenAI API error (attempt {attempt + 1}): {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(5 * (attempt + 1))  # Progressive delay between retries
+            continue
+    
+    # If all retries failed, return empty JSON with correct structure
+    return json.dumps({
+        "tutorial_ideas": [],
+        "use_cases": [],
+        "technical_questions": [],
+        "problem_statements": []
+    })
+
+# Process files with delay to prevent overload
+for filename in os.listdir(json_directory):
+    if filename.endswith('.json'):
+        try:
+            file_path = os.path.join(json_directory, filename)
+            print(f"\nProcessing {filename}...")
+            
+            # Load JSON content
+            with open(file_path, 'r', encoding='utf-8') as file:
+                json_data = json.load(file)
+            
+            # Extract comments text
+            comments_text = "\n".join(comment['text'] for comment in json_data.get("comments", []))
+            
+            # Process with OpenAI instead of Ollama
+            openai_output = process_with_openai(comments_text)
+            
+            # Parse the output to check if all arrays are empty
+            processed_data = json.loads(openai_output)
+            if all(len(processed_data[key]) == 0 for key in processed_data):
+                print(f"Skipping {filename} - no relevant content found")
+                continue
+            
+            # Save results only if there's relevant content
+            output_path = os.path.join(output_directory, f'processed_{filename}')
+            with open(output_path, 'w', encoding='utf-8') as output_file:
+                json.dump(processed_data, output_file, indent=4)
+            
+            print(f"Successfully processed {filename}")
+            
+            # Add a small delay between files to prevent rate limiting
+            time.sleep(2)
+            
+        except Exception as e:
+            print(f"Error processing file {filename}: {str(e)}")
+            continue
