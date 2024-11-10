@@ -2,6 +2,7 @@ import json
 import os
 import time
 from pathlib import Path
+from html import unescape
 
 from openai import OpenAI
 
@@ -99,6 +100,27 @@ def load_config():
         config = json.load(f)
     return config
 
+def clean_text(text):
+    """Clean and normalize text content"""
+    if not isinstance(text, str):
+        return ""
+    
+    # Unescape HTML entities
+    text = unescape(text)
+    
+    # Replace common Unicode quotes with standard quotes
+    text = text.replace('\u2018', "'")  # Left single quote
+    text = text.replace('\u2019', "'")  # Right single quote
+    text = text.replace('\u201C', '"')  # Left double quote
+    text = text.replace('\u201D', '"')  # Right double quote
+    
+    # Replace other common Unicode characters
+    text = text.replace('\u2013', '-')  # En dash
+    text = text.replace('\u2014', '-')  # Em dash
+    text = text.replace('\u2026', '...') # Ellipsis
+    
+    return text.strip()
+
 def process_with_openai(content, max_retries=3):
     config = load_config()
     client = OpenAI(api_key=config['openai_api_key'])
@@ -111,7 +133,7 @@ def process_with_openai(content, max_retries=3):
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini", # gpt-4o-mini is the correct model name
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": content}
@@ -126,10 +148,16 @@ def process_with_openai(content, max_retries=3):
             try:
                 json_obj = json.loads(output)
                 if validate_json_structure(json_obj):
+                    # Clean text content in each category
+                    for category in json_obj:
+                        for item in json_obj[category]:
+                            item["content"] = clean_text(item["content"])
+                    
                     # Sort each category by votes
                     for category in json_obj:
                         json_obj[category].sort(key=lambda x: x["votes"], reverse=True)
-                    return json.dumps(json_obj)
+                    
+                    return json.dumps(json_obj, ensure_ascii=False)
                 else:
                     print(f"Invalid JSON structure (attempt {attempt + 1})")
                     continue
@@ -143,13 +171,12 @@ def process_with_openai(content, max_retries=3):
                 time.sleep(5 * (attempt + 1))
             continue
     
-    # If all retries failed, return empty JSON with correct structure
     return json.dumps({
         "tutorial_ideas": [],
         "use_cases": [],
         "technical_questions": [],
         "problem_statements": []
-    })
+    }, ensure_ascii=False)
 
 # Process files with delay to prevent overload
 for filename in os.listdir(json_directory):
@@ -166,7 +193,7 @@ for filename in os.listdir(json_directory):
             comments_data = []
             for comment in json_data.get("comments", []):
                 comments_data.append({
-                    "text": comment['text'],
+                    "text": clean_text(comment['text']),
                     "author": comment['author'],
                     "votes": comment.get('votes', '0'),
                     "heart": comment.get('heart', False),
@@ -191,7 +218,7 @@ for filename in os.listdir(json_directory):
             # Save results only if there's relevant content
             output_path = os.path.join(output_directory, f'processed_{filename}')
             with open(output_path, 'w', encoding='utf-8') as output_file:
-                json.dump(processed_data, output_file, indent=4)
+                json.dump(processed_data, output_file, indent=4, ensure_ascii=False)
             
             print(f"Successfully processed {filename}")
             
