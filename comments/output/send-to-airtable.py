@@ -158,6 +158,39 @@ def analyze_schema(schema_data):
     
     return missing_fields
 
+def load_json_data(filepath: str) -> Dict:
+    """Load and parse the JSON file"""
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading JSON file: {str(e)}")
+        return None
+
+def create_record(record_data: Dict):
+    """Create a single record in Airtable"""
+    url = f"https://api.airtable.com/v0/{BASE_ID}/{TABLE_ID}"
+    
+    try:
+        response = requests.post(
+            url,
+            headers=headers,
+            json={"fields": record_data}
+        )
+        
+        if response.status_code == 200:
+            return True
+        else:
+            print(f"Error creating record: {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Error creating record: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"Response: {e.response.text}")
+        return False
+
 def main():
     print("Getting current base schema...")
     schema_data = get_base_schema()
@@ -176,12 +209,46 @@ def main():
                         print(f"\nFailed to create field: {field_name}")
                         break
                 
-                if success:
-                    print("\nAll fields created successfully!")
-                else:
+                if not success:
                     print("\nFailed to create all fields.")
-        else:
-            print("\nTable structure is already correct. Ready to import data.")
+                    return
+                
+                print("\nAll fields created successfully!")
+            else:
+                return
+        
+        # Load the JSON data
+        json_data = load_json_data('combined_comments.json')
+        if not json_data:
+            print("Failed to load JSON data")
+            return
+        
+        # Process and upload each category
+        total_records = 0
+        successful_records = 0
+        
+        for category, comments in json_data.items():
+            print(f"\nProcessing category: {category}")
+            
+            for comment in comments:
+                record_data = {
+                    "Category": category,
+                    "Content": comment["content"],
+                    "Author": comment["author"],
+                    "Votes": comment["votes"],
+                    "Hearted": comment["hearted"],
+                    "Has_Replies": comment["has_replies"],
+                    "Last_Updated": datetime.utcnow().isoformat()
+                }
+                
+                total_records += 1
+                if create_record(record_data):
+                    successful_records += 1
+                    print(".", end="", flush=True)  # Progress indicator
+                else:
+                    print("x", end="", flush=True)  # Error indicator
+        
+        print(f"\n\nUpload complete! Successfully uploaded {successful_records} of {total_records} records.")
     else:
         print("Unable to proceed without schema information")
 
