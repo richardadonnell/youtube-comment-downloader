@@ -28,18 +28,29 @@ def validate_json_structure(json_obj):
         
         # Check each item in the array
         for item in json_obj[key]:
-            # Must be a string
-            if not isinstance(item, str):
+            # Must be a dictionary with all required fields
+            if not isinstance(item, dict):
                 return False
-            # Must not be empty
-            if not item.strip():
+            if not all(k in item for k in ["content", "votes", "hearted", "has_replies"]):
                 return False
-            # Must be a reasonable length (not too short or long)
-            if len(item) < 10 or len(item) > 500:
+            # Type validation for each field
+            if not isinstance(item["content"], str):
+                return False
+            if not isinstance(item["votes"], (int, float)):
+                return False
+            if not isinstance(item["hearted"], bool):
+                return False
+            if not isinstance(item["has_replies"], bool):
+                return False
+            # Content must not be empty
+            if not item["content"].strip():
+                return False
+            # Must be a reasonable length
+            if len(item["content"]) < 10 or len(item["content"]) > 500:
                 return False
             # Must not contain placeholder-like text
             placeholder_indicators = ['example', 'placeholder', 'idea1', 'use case1', 'question1']
-            if any(indicator in item.lower() for indicator in placeholder_indicators):
+            if any(indicator in item["content"].lower() for indicator in placeholder_indicators):
                 return False
     
     return True
@@ -91,37 +102,15 @@ def process_with_openai(content, max_retries=3):
     config = load_config()
     client = OpenAI(api_key=config['openai_api_key'])
     
-    prompt = """You are a JSON-only response bot. You MUST output ONLY valid JSON - no plain text allowed.
-
-            CRITICAL OUTPUT RULES:
-            1. Output MUST be pure JSON - starting with { and ending with }
-            2. DO NOT output any plain text analysis or summaries
-            3. DO NOT add any text before or after the JSON
-            4. DO NOT explain your thinking or reasoning
-            5. ONLY output in this exact JSON format:
-            {
-            "tutorial_ideas": [],
-            "use_cases": [],
-            "technical_questions": [],
-            "problem_statements": []
-            }
-
-            TASK: Silently analyze the comments and extract ONLY Make.com-related content into these categories:
-            - tutorial_ideas: Direct requests or suggestions for Make.com tutorials, especially on scenarios or automation workflows
-            - use_cases: Specific scenarios or real-world examples where Make.com could be used for automation
-            - technical_questions: Technical questions directly concerning Make.com's features, modules, or integrations
-            - problem_statements: Automation problems or challenges that could be addressed by Make.com
-
-            REMEMBER:
-            - If no Make.com content exists, return empty arrays but maintain JSON structure
-            - Do not explain why arrays are empty
-            - Avoid any commentary or plain text; output JSON only
-            - Do not start your response with ```json"""
+    # Read prompt from file
+    prompt_path = Path(__file__).parent / 'prompt.txt'
+    with open(prompt_path, 'r', encoding='utf-8') as f:
+        prompt = f.read()
     
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4",  # Fixed typo in model name
                 messages=[
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": content}
@@ -132,12 +121,14 @@ def process_with_openai(content, max_retries=3):
             
             output = response.choices[0].message.content
             
-            # Validate the response
+            # Validate and sort the response
             try:
                 json_obj = json.loads(output)
                 if validate_json_structure(json_obj):
-                    # Return the output even if arrays are empty - removed retry logic here
-                    return output
+                    # Sort each category by votes
+                    for category in json_obj:
+                        json_obj[category].sort(key=lambda x: x["votes"], reverse=True)
+                    return json.dumps(json_obj)
                 else:
                     print(f"Invalid JSON structure (attempt {attempt + 1})")
                     continue
@@ -148,7 +139,7 @@ def process_with_openai(content, max_retries=3):
         except Exception as e:
             print(f"OpenAI API error (attempt {attempt + 1}): {str(e)}")
             if attempt < max_retries - 1:
-                time.sleep(5 * (attempt + 1))  # Progressive delay between retries
+                time.sleep(5 * (attempt + 1))
             continue
     
     # If all retries failed, return empty JSON with correct structure
