@@ -53,16 +53,26 @@ def get_field_config(field_name: str, field_type: str, options: dict = None) -> 
     # Add type-specific options
     if field_type == "number":
         base_config["options"] = {
-            "precision": 0,  # Integer precision
-            "format": "integer"  # Format as integer
+            "precision": 0  # Integer precision
         }
     elif field_type == "singleSelect" and options and "choices" in options:
         base_config["options"] = options
     elif field_type == "dateTime":
         base_config["options"] = {
-            "dateFormat": {"name": "iso", "format": "YYYY-MM-DD"},
-            "timeFormat": {"name": "24hour", "format": "HH:mm"},
-            "timeZone": "UTC"
+            "dateFormat": {
+                "name": "iso", 
+                "format": "YYYY-MM-DD"
+            },
+            "timeFormat": {
+                "name": "24hour", 
+                "format": "HH:mm"
+            },
+            "timeZone": "client"
+        }
+    elif field_type == "checkbox":
+        base_config["options"] = {
+            "color": "greenBright",
+            "icon": "check"
         }
     
     return base_config
