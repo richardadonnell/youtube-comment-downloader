@@ -98,7 +98,6 @@ def load_config():
     return config
 
 def process_with_openai(content, max_retries=3):
-    """Process content using OpenAI API instead of Ollama"""
     config = load_config()
     client = OpenAI(api_key=config['openai_api_key'])
     
@@ -110,7 +109,7 @@ def process_with_openai(content, max_retries=3):
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
-                model="gpt-4",  # Fixed typo in model name
+                model="gpt-4o-mini", # gpt-4o-mini is the correct model name
                 messages=[
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": content}
