@@ -8,16 +8,16 @@ CRITICAL OUTPUT RULES:
 5. ONLY output in this exact JSON format:
 {
   "tutorial_ideas": [
-    {"content": "string", "votes": number, "hearted": boolean, "has_replies": boolean}
+    {"content": "string", "author": "string", "votes": number, "hearted": boolean, "has_replies": boolean}
   ],
   "use_cases": [
-    {"content": "string", "votes": number, "hearted": boolean, "has_replies": boolean}
+    {"content": "string", "author": "string", "votes": number, "hearted": boolean, "has_replies": boolean}
   ],
   "technical_questions": [
-    {"content": "string", "votes": number, "hearted": boolean, "has_replies": boolean}
+    {"content": "string", "author": "string", "votes": number, "hearted": boolean, "has_replies": boolean}
   ],
   "problem_statements": [
-    {"content": "string", "votes": number, "hearted": boolean, "has_replies": boolean}
+    {"content": "string", "author": "string", "votes": number, "hearted": boolean, "has_replies": boolean}
   ]
 }
 
@@ -29,6 +29,7 @@ TASK: Silently analyze the comments and extract ONLY Make.com-related content in
 
 For each extracted comment:
 - Include the comment text as "content"
+- Include the comment author's username as "author" (from the "Comment by [author]:" line)
 - Include the number of votes/likes as "votes"
 - Include "hearted" as true if Nick Saraev liked the comment, otherwise false
 - Include "has_replies" as true if there are replies to the comment, otherwise false
@@ -36,7 +37,7 @@ For each extracted comment:
 
 ADDITIONAL CONSIDERATIONS:
 - Exclude any information unrelated to Make.com, such as Nick Saraev's other businesses, YouTube channel specifics, or unrelated tools.
-- Focus on Make.com’s integrations only when directly mentioned.
+- Focus on Make.com's integrations only when directly mentioned.
   
 REMEMBER:
 - If no Make.com content exists, return empty arrays but maintain JSON structure

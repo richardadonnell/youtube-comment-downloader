@@ -31,10 +31,12 @@ def validate_json_structure(json_obj):
             # Must be a dictionary with all required fields
             if not isinstance(item, dict):
                 return False
-            if not all(k in item for k in ["content", "votes", "hearted", "has_replies"]):
+            if not all(k in item for k in ["content", "author", "votes", "hearted", "has_replies"]):
                 return False
             # Type validation for each field
             if not isinstance(item["content"], str):
+                return False
+            if not isinstance(item["author"], str):
                 return False
             if not isinstance(item["votes"], (int, float)):
                 return False
@@ -160,10 +162,24 @@ for filename in os.listdir(json_directory):
             with open(file_path, 'r', encoding='utf-8') as file:
                 json_data = json.load(file)
             
-            # Extract comments text
-            comments_text = "\n".join(comment['text'] for comment in json_data.get("comments", []))
+            # Extract comments with text and author
+            comments_data = []
+            for comment in json_data.get("comments", []):
+                comments_data.append({
+                    "text": comment['text'],
+                    "author": comment['author'],
+                    "votes": comment.get('votes', '0'),
+                    "heart": comment.get('heart', False),
+                    "replies": bool(comment.get('replies', ''))
+                })
             
-            # Process with OpenAI instead of Ollama
+            # Convert to formatted string for OpenAI
+            comments_text = "\n\n".join(
+                f"Comment by {c['author']}:\n{c['text']}\nVotes: {c['votes']}\nHearted: {c['heart']}\nHas replies: {c['replies']}"
+                for c in comments_data
+            )
+            
+            # Process with OpenAI
             openai_output = process_with_openai(comments_text)
             
             # Parse the output to check if all arrays are empty
