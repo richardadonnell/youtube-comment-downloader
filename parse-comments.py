@@ -116,7 +116,7 @@ def process_with_openai(content, max_retries=3):
                     {"role": "user", "content": content}
                 ],
                 temperature=0.1,
-                max_tokens=1000
+                max_tokens=16384
             )
             
             output = response.choices[0].message.content
