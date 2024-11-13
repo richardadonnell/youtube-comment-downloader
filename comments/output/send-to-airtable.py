@@ -4,12 +4,20 @@ from datetime import datetime
 from typing import Dict, List
 
 import requests
+from dotenv import load_dotenv
 
-# Constants
-AIRTABLE_API_KEY = "pathANodJJYpoWX8J.de32530804bacd1af289d0453ada3d29833daf33d1d6f0e73fefe715cf0ced48"
-BASE_ID = "appGGYTvgwHlIlKwT"  
-TABLE_ID = "tbl9Kpa81tzFu3DWr"
-API_VERSION = "v0"
+# Load environment variables
+load_dotenv()
+
+# Get environment variables
+AIRTABLE_API_KEY = os.getenv('AIRTABLE_API_KEY')
+BASE_ID = os.getenv('AIRTABLE_BASE_ID')
+TABLE_ID = os.getenv('AIRTABLE_TABLE_ID')
+API_VERSION = os.getenv('AIRTABLE_API_VERSION')
+
+# Validate environment variables
+if not all([AIRTABLE_API_KEY, BASE_ID, TABLE_ID, API_VERSION]):
+    raise ValueError("Missing required environment variables. Please check your .env file.")
 
 # Headers with API versioning
 headers = {
